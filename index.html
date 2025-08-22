@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reticulator by Enclave Studio</title>
+<style>
+  :root{
+    --bg:#0a0a0a; --fg:#f5f5f7; --muted:#a3a3a3;
+    --panel:rgba(255,255,255,.06); --control:rgba(255,255,255,.10);
+    --ring:rgba(255,255,255,.25); --cyan:#67d2ff; --orange:#ff6a00;
+    --r:14px; --gap:16px; --pad:20px; --h:44px;
+    --sidebar: 320px; --toolbar-collapsed:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+
+  /* App layout: desktop = left sidebar; mobile = bottom toolbar */
+  .app{display:grid;grid-template-columns:var(--sidebar) 1fr;grid-template-rows:1fr;min-height:100vh;width:100%}
+  aside#sidebar{background:var(--panel);backdrop-filter:saturate(1.1) blur(6px);padding:var(--pad);display:flex;flex-direction:column;gap:var(--gap);overflow:auto;transition:background .25s,color .25s}
+  /* Adaptive toolbar tone (mobile primarily) */
+  aside#sidebar.tone-light{background:rgba(255,255,255,.86);color:#111}
+  aside#sidebar.tone-light .label{color:#333}
+  aside#sidebar.tone-light .ctrl, aside#sidebar.tone-light .range-wrap, aside#sidebar.tone-light .toggle-wrap{background:rgba(0,0,0,.08);color:#111}
+  aside#sidebar.tone-light .btn-save{color:#121212}
+
+  .title{font-weight:800;letter-spacing:.2px}
+  .caption{color:var(--muted);font-size:.9rem;margin-top:4px}
+  .fields{display:flex;flex-direction:column;gap:var(--gap)}
+  .field{display:flex;flex-direction:column;gap:8px}
+  .field .label{font-size:.9rem;color:var(--muted)}
+
+  /* Controls */
+  input,button{font:inherit;color:inherit;border:none;border-radius:var(--r);outline:none}
+  input[type="file"]{background:var(--control);color:inherit;padding:.5rem;border-radius:var(--r);height:var(--h);display:flex;align-items:center}
+  .ctrl{background:var(--control);height:var(--h);padding:0 12px;display:flex;align-items:center}
+  input[type="number"].ctrl{width:100%;justify-content:center}
+  input[type="color"].ctrl{width:100%;padding:0}
+  button.ctrl{padding:0 18px;cursor:pointer}
+  .btn-save{background:var(--orange);color:#121212;font-weight:700}
+
+  /* Sliders */
+  .range-wrap{height:var(--h);display:flex;align-items:center;background:var(--control);border-radius:var(--r);padding:0 12px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:rgba(255,255,255,.28);border-radius:999px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;margin-top:-6px;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
+  input[type=range]::-moz-range-track{height:6px;background:rgba(255,255,255,.28);border-radius:999px}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border:none;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
+
+  /* Fit toggle */
+  .toggle-wrap{height:var(--h);display:flex;align-items:center;background:var(--control);border-radius:var(--r);padding:0 12px}
+  .toggle{position:relative;width:56px;height:28px}
+  .toggle input{position:absolute;inset:0;opacity:0}
+  .track{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.25);transition:.25s}
+  .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .25s}
+  .toggle input:checked + .track{background:#34c759}
+  .toggle input:checked + .track .knob{transform:translateX(28px)}
+
+  /* Actions group */
+  .actions{display:flex;gap:1rem}
+
+  /* Canvas area */
+  main{padding:var(--pad);display:grid;place-items:center;overflow:auto}
+  .surface{width:100%;max-width:1600px;background:var(--panel);border-radius:var(--r);padding:16px;height:calc(100vh - (var(--pad)*2));display:grid;place-items:center;position:relative}
+  canvas{display:none}
+  #preview{display:block;max-width:100%;max-height:100%;width:auto;height:auto;background:#000;border-radius:var(--r);object-fit:contain;position:relative;z-index:1;opacity:0;transition:opacity .2s ease}
+  #preview.is-ready{opacity:1}
+  #placeholder{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:.95rem;pointer-events:none;z-index:0;background:transparent}
+  #placeholder.hidden{display:none !important}
+  #err{color:#ffb6b6}
+
+  /* Preset buttons */
+  .presets{display:flex;flex-wrap:wrap;gap:8px}
+  .preset-btn{height:36px;padding:0 12px;border-radius:10px;background:var(--control);cursor:pointer}
+  .preset-btn:active{transform:translateY(1px)}
+
+  /* Mobile: dock bottom, 95% width centered, fixed; wrap fields; show mobile bar only */
+  .mobile-bar{display:none}
+  @media (max-width: 860px){
+    .app{display:flex;flex-direction:column}
+    main{order:1}
+    aside#sidebar{order:2;position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);width:95%;margin:0 auto;border-radius:var(--r);padding:12px;gap:12px;max-height:70vh;overflow:auto;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,.4);padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px))}
+    .mobile-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;order:-1}
+    .mobile-toggle{background:var(--control);height:40px;padding:0 14px;border-radius:var(--r);cursor:pointer}
+    .fields{flex-direction:row;flex-wrap:wrap;gap:12px}
+    .field.fileUpload{width:100%}
+    .field.toolbarController{width:48%}
+    .field.toolbarActions{display:none !important}
+    .actions{gap:12px}
+    .btn-save{flex:1;width:100%}
+    /* collapsed state */
+    aside#sidebar.collapsed .fields{display:none}
+    aside#sidebar.collapsed{max-height:var(--toolbar-collapsed);overflow:hidden}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" class="collapsed">
+    <!-- Mobile header bar: visible only on mobile, placed at top of sidebar DOM -->
+    <div class="mobile-bar">
+      <button id="toggleTools" class="mobile-toggle" type="button">Tools ▵</button>
+      <div class="actions">
+        <button id="saveBtn" class="ctrl btn-save" type="button">Save</button>
+        <button id="resetBtn" class="ctrl" type="button">Reset</button>
+      </div>
+    </div>
+
+    <div class="title">Reticulator by Enclave Studio</div>
+    <div class="caption">Click "Save" when done. If you can’t see your file, enable pop-ups. If you're on mobile, scroll down for preview.</div>
+
+    <div class="fields">
+      <div class="field fileUpload">
+        <div class="label">File</div>
+        <input id="fileInput" class="ctrl" type="file" accept="image/*" />
+      </div>
+
+      <!-- Presets -->
+      <div class="field toolbarController">
+        <div class="label">Presets</div>
+        <div class="presets">
+          <button class="preset-btn" data-v="2" data-h="4">2×4</button>
+          <button class="preset-btn" data-v="4" data-h="4">4×4</button>
+          <button class="preset-btn" data-v="4" data-h="6">4×6</button>
+          <button class="preset-btn" data-v="6" data-h="6">6×6</button>
+          <button class="preset-btn" data-v="6" data-h="8">6×8</button>
+          <button class="preset-btn" data-v="8" data-h="8">8×8</button>
+          <button id="presetRandom" class="preset-btn">Randomize</button>
+        </div>
+      </div>
+
+      <div class="field toolbarController">
+        <div class="label">Vertical</div>
+        <input id="vDiv" class="ctrl" type="number" value="4" min="1" max="200" />
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Horizontal</div>
+        <input id="hDiv" class="ctrl" type="number" value="4" min="1" max="200" />
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Diagonal /</div>
+        <input id="dFDiv" class="ctrl" type="number" value="2" min="1" max="200" title="/ (bottom-left → top-right)" />
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Diagonal \\</div>
+        <input id="dBDiv" class="ctrl" type="number" value="2" min="1" max="200" title="\\ (top-left → bottom-right)" />
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Weight</div>
+        <div class="range-wrap">
+          <input id="lineWidth" type="range" min="0.5" max="10" step="0.5" value="1.5" />
+        </div>
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Color</div>
+        <input id="lineColor" class="ctrl" type="color" value="#67d2ff" />
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Opacity</div>
+        <div class="range-wrap">
+          <input id="opacity" type="range" min="0.05" max="1" step="0.05" value="0.9" />
+        </div>
+      </div>
+      <div class="field toolbarController">
+        <div class="label">Fit</div>
+        <div class="toggle-wrap">
+          <label class="toggle">
+            <input id="fit" type="checkbox" checked />
+            <span class="track"><span class="knob"></span></span>
+          </label>
+        </div>
+      </div>
+      <div class="field toolbarActions">
+        <div class="label">Actions</div>
+        <div class="actions">
+          <button id="saveBtn2" class="ctrl btn-save" type="button">Save</button>
+          <button id="resetBtn2" class="ctrl" type="button">Reset</button>
+        </div>
+      </div>
+      <span id="err"></span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="surface">
+      <div id="placeholder">Upload an image to get started</div>
+      <canvas id="canvas"></canvas>
+      <img id="preview" alt="Preview" draggable="false" />
+    </div>
+  </main>
+</div>
+
+<script>
+(()=>{
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const fileInput=$('fileInput'), vDivEl=$('vDiv'), hDivEl=$('hDiv'), dFDivEl=$('dFDiv'), dBDivEl=$('dBDiv');
+  const lineWidthEl=$('lineWidth'), lineColorEl=$('lineColor'), opacityEl=$('opacity'), fitEl=$('fit');
+  const resetBtnTop=$('resetBtn'), saveBtnTop=$('saveBtn');
+  const resetBtn2=$('resetBtn2'), saveBtn2=$('saveBtn2');
+  const err=$('err');
+  const preview=$('preview');
+  const placeholder=$('placeholder');
+  const canvas=$('canvas'), ctx=canvas.getContext('2d');
+  let img=new Image(), imgLoaded=false, displayW=800, displayH=600;
+
+  const clamp=(n,min,max)=>Math.max(min,Math.min(max,isNaN(n)?min:n));
+  const naturalFit=(nw,nh,maxW,maxH)=>{ const r=Math.min(maxW/nw,maxH/nh); return {w:nw*r,h:nh*r}; };
+
+  function setCanvasSizeToFit(){
+    const surface=document.querySelector('.surface');
+    const maxW=surface.clientWidth; const maxH=surface.clientHeight;
+    if (!imgLoaded || fitEl.checked) {
+      const s = imgLoaded?naturalFit(img.naturalWidth,img.naturalHeight,maxW,maxH):{w:800,h:600};
+      displayW=Math.max(200,s.w); displayH=Math.max(150,s.h);
+    } else { displayW=img.naturalWidth; displayH=img.naturalHeight; }
+    canvas.width=Math.floor(displayW); canvas.height=Math.floor(displayH);
+  }
+
+  function hexToRgba(hex,a){ const m=/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex); if(!m) return `rgba(103,210,255,${a})`; return `rgba(${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)},${a})`; }
+  const line=(x1,y1,x2,y2)=>{ ctx.beginPath(); ctx.moveTo(x1+0.5,y1+0.5); ctx.lineTo(x2+0.5,y2+0.5); ctx.stroke(); };
+  function pickTwoExtreme(points){ let best=[points[0],points[1]],bestD=-1; for(let i=0;i<points.length;i++){ for(let j=i+1;j<points.length;j++){ const dx=points[i][0]-points[j][0], dy=points[i][1]-points[j][1]; const d=dx*dx+dy*dy; if(d>bestD){ best=[points[i],points[j]]; bestD=d; } } } return best; }
+  function computeSlashSegment(c,W,H){ const pts=[]; let x,y; y=c*H; if(y>=0&&y<=H) pts.push([0,y]); y=H*(c-1); if(y>=0&&y<=H) pts.push([W,y]); x=c*W; if(x>=0&&x<=W) pts.push([x,0]); x=W*(c-1); if(x>=0&&x<=W) pts.push([x,H]); if(pts.length<2) return null; return pickTwoExtreme(pts); }
+  function computeBackslashSegment(c,W,H){ const pts=[]; let x,y; y=-c*H; if(y>=0&&y<=H) pts.push([0,y]); y=(1-c)*H; if(y>=0&&y<=H) pts.push([W,y]); x=c*W; if(x>=0&&x<=W) pts.push([x,0]); x=(1+c)*W; if(x>=0&&x<=W) pts.push([x,H]); if(pts.length<2) return null; return pickTwoExtreme(pts); }
+
+  function updatePreviewVisibility(){
+    if(imgLoaded){ preview.classList.add('is-ready'); }
+    else { preview.classList.remove('is-ready'); }
+  }
+
+  function draw(){
+    setCanvasSizeToFit();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(!imgLoaded){ preview.removeAttribute('src'); placeholder.classList.remove('hidden'); updatePreviewVisibility(); return; }
+    placeholder.classList.add('hidden');
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(img,0,0,displayW,displayH);
+
+    const vDiv=clamp(parseInt(vDivEl.value||1,10),1,200);
+    const hDiv=clamp(parseInt(hDivEl.value||1,10),1,200);
+    const dFDiv=clamp(parseInt(dFDivEl.value||1,10),1,200);
+    const dBDiv=clamp(parseInt(dBDivEl.value||1,10),1,200);
+    const lw=parseFloat(lineWidthEl.value||1.5);
+    const color=hexToRgba(lineColorEl.value,parseFloat(opacityEl.value||1));
+
+    ctx.strokeStyle=color; ctx.lineWidth=lw;
+    for(let i=1;i<vDiv;i++){ const x=(displayW*i)/vDiv; line(x,0,x,displayH); }
+    for(let i=1;i<hDiv;i++){ const y=(displayH*i)/hDiv; line(0,y,displayW,y); }
+    for(let i=1;i<dFDiv;i++){ const c=(2*i)/dFDiv; const seg=computeSlashSegment(c,displayW,displayH); if(seg) line(seg[0][0],seg[0][1],seg[1][0],seg[1][1]); }
+    for(let i=1;i<dBDiv;i++){ const c=-1+(2*i)/dBDiv; const seg=computeBackslashSegment(c,displayW,displayH); if(seg) line(seg[0][0],seg[0][1],seg[1][0],seg[1][1]); }
+
+    try { preview.src = canvas.toDataURL('image/png'); } catch(e) {}
+    updatePreviewVisibility();
+    autoToneToolbar();
+  }
+
+  function exportBlob(cb){
+    const out=document.createElement('canvas'); out.width=img.naturalWidth; out.height=img.naturalHeight; const ex=out.getContext('2d');
+    ex.imageSmoothingEnabled=true; ex.drawImage(img,0,0,out.width,out.height);
+
+    const vDiv=parseInt(vDivEl.value||1,10), hDiv=parseInt(hDivEl.value||1,10), dFDiv=parseInt(dFDivEl.value||1,10), dBDiv=parseInt(dBDivEl.value||1,10);
+    const lw=parseFloat(lineWidthEl.value||1.5), color=hexToRgba(lineColorEl.value,parseFloat(opacityEl.value||1));
+    ex.strokeStyle=color; ex.lineWidth=lw;
+    const W=out.width, H=out.height;
+    const L=(x1,y1,x2,y2)=>{ ex.beginPath(); ex.moveTo(x1+0.5,y1+0.5); ex.lineTo(x2+0.5,y2+0.5); ex.stroke(); };
+    for(let i=1;i<vDiv;i++){ const x=(W*i)/vDiv; L(x,0,x,H); }
+    for(let i=1;i<hDiv;i++){ const y=(H*i)/hDiv; L(0,y,W,y); }
+    for(let i=1;i<dFDiv;i++){ const c=(2*i)/dFDiv; const seg=computeSlashSegment(c,W,H); if(seg) L(seg[0][0],seg[0][1],seg[1][0],seg[1][1]); }
+    for(let i=1;i<dBDiv;i++){ const c=-1+(2*i)/dBDiv; const seg=computeBackslashSegment(c,W,H); if(seg) L(seg[0][0],seg[0][1],seg[1][0],seg[1][1]); }
+
+    if (out.toBlob) out.toBlob(cb, 'image/png');
+    else cb(dataURLToBlob(out.toDataURL('image/png')));
+  }
+
+  function dataURLToBlob(dataUrl){ const arr=dataUrl.split(','), mime=arr[0].match(/:(.*?);/)[1]; const bstr=atob(arr[1]); let n=bstr.length; const u8=new Uint8Array(n); while(n--) u8[n]=bstr.charCodeAt(n); return new Blob([u8],{type:mime}); }
+
+  // ===== Presets & Randomize =====
+  function applyPreset(v,h){ vDivEl.value=v; hDivEl.value=h; draw(); }
+  function randomize(){
+    const choices=[[2,4],[4,4],[4,6],[6,6],[6,8],[8,8]];
+    const pick=choices[Math.floor(Math.random()*choices.length)];
+    vDivEl.value=pick[0]; hDivEl.value=pick[1];
+    dFDivEl.value = Math.max(1, Math.round(Math.random()*8));
+    dBDivEl.value = Math.max(1, Math.round(Math.random()*8));
+    lineWidthEl.value = (Math.random()*9.5 + 0.5).toFixed(1);
+    opacityEl.value = (Math.random()*0.9 + 0.1).toFixed(2);
+    draw();
+  }
+  document.querySelectorAll('.preset-btn[data-v]').forEach(btn=>{
+    btn.addEventListener('click',()=>applyPreset(parseInt(btn.dataset.v,10),parseInt(btn.dataset.h,10)));
+  });
+  const presetRandom=document.getElementById('presetRandom');
+  if(presetRandom) presetRandom.addEventListener('click', randomize);
+
+  // ===== Auto tone toolbar (mobile) based on image luminance =====
+  function computeAverageLuma(){
+    try{
+      const off=document.createElement('canvas'); const sz=32; off.width=sz; off.height=sz; const ox=off.getContext('2d',{willReadFrequently:true});
+      ox.drawImage(canvas,0,0,sz,sz);
+      const imgd=ox.getImageData(0,0,sz,sz).data; let sum=0; for(let i=0;i<imgd.length;i+=4){ const r=imgd[i], g=imgd[i+1], b=imgd[i+2]; sum += 0.2126*r + 0.7152*g + 0.0722*b; }
+      return sum / (sz*sz);
+    }catch(e){ return 180; }
+  }
+  function autoToneToolbar(){
+    const sidebar=document.getElementById('sidebar');
+    const isMobile=window.matchMedia('(max-width: 860px)').matches;
+    if(!isMobile || !imgLoaded){ sidebar.classList.remove('tone-light'); return; }
+    const luma=computeAverageLuma();
+    // If image is dark (average luma low), make toolbar light for contrast
+    if(luma < 110) sidebar.classList.add('tone-light'); else sidebar.classList.remove('tone-light');
+  }
+
+  // ===== Events =====
+  fileInput.addEventListener('change', e=>{
+    const f=e.target.files && e.target.files[0];
+    if(!f) return;
+    const url=URL.createObjectURL(f);
+    const im=new Image();
+    im.onload=()=>{ img=im; imgLoaded=true; draw(); URL.revokeObjectURL(url); };
+    im.onerror=()=>{ err.textContent='Could not load that image.' };
+    im.src=url;
+  });
+
+  [vDivEl,hDivEl,dFDivEl,dBDivEl,lineWidthEl,lineColorEl,opacityEl,fitEl].forEach(el=>{
+    const h=()=>{ draw(); };
+    el.addEventListener('input', h);
+    el.addEventListener('change', h);
+  });
+
+  function doReset(){
+    vDivEl.value=4; hDivEl.value=4; dFDivEl.value=2; dBDivEl.value=2; lineWidthEl.value=1.5; lineColorEl.value='#67d2ff'; opacityEl.value=0.9; fitEl.checked=true; draw();
+  }
+  [$('resetBtn'), $('resetBtn2')].forEach(b=> b&&b.addEventListener('click', doReset));
+
+  function doSave(){
+    if(!imgLoaded){ err.textContent='Upload an image first.'; return; }
+    const win = window.open('', '_blank'); // popup-safe open
+    exportBlob((blob)=>{
+      const url = URL.createObjectURL(blob);
+      if (win) { win.location.href = url; }
+      else { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.click(); }
+      setTimeout(()=>URL.revokeObjectURL(url), 30_000);
+    });
+  }
+  [$('saveBtn'), $('saveBtn2')].forEach(b=> b&&b.addEventListener('click', doSave));
+
+  // Mobile: collapse/expand toolbar — mobile bar stays visible
+  const toggleBtn = $('toggleTools');
+  const sidebar = document.getElementById('sidebar');
+  const setCollapsed = (c)=>{
+    if(c){ sidebar.classList.add('collapsed'); if(toggleBtn) toggleBtn.textContent='Tools ▵'; }
+    else { sidebar.classList.remove('collapsed'); if(toggleBtn) toggleBtn.textContent='Tools ▾'; }
+  };
+  const mql = window.matchMedia('(max-width: 860px)');
+  function applyResponsiveState(){ setCollapsed(mql.matches); autoToneToolbar(); }
+  toggleBtn && toggleBtn.addEventListener('click', ()=>{ const c=sidebar.classList.contains('collapsed'); setCollapsed(!c); });
+  mql.addEventListener ? mql.addEventListener('change', applyResponsiveState) : mql.addListener(applyResponsiveState);
+  applyResponsiveState();
+
+  window.addEventListener('resize', ()=>{ if(imgLoaded) draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
