@@ -7,47 +7,49 @@
 <style>
   :root{
     --bg:#0a0a0a; --fg:#f5f5f7; --muted:#a3a3a3;
-    --panel:rgba(255,255,255,.06); --control:rgba(255,255,255,.10);
-    --ring:rgba(255,255,255,.25); --cyan:#67d2ff; --orange:#ff6a00;
-    --r:14px; --gap:16px; --pad:20px; --h:44px;
+    --panel:rgba(255,255,255,.06);
+    --control:rgba(255,255,255,.10);
+    --cyan:#67d2ff; --orange:#ff6a00;
+    --r:14px; --gap:16px; --pad:20px; --h:44px; /* 1rem rhythm */
     --sidebar: 320px; --toolbar-collapsed:64px;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
 
-  /* App layout: desktop = left sidebar; mobile = bottom toolbar */
   .app{display:grid;grid-template-columns:var(--sidebar) 1fr;grid-template-rows:1fr;min-height:100vh;width:100%}
-  aside#sidebar{background:var(--panel);backdrop-filter:saturate(1.1) blur(6px);padding:var(--pad);display:flex;flex-direction:column;gap:var(--gap);overflow:auto;transition:background .25s,color .25s}
-  /* Adaptive toolbar tone (mobile primarily) */
-  aside#sidebar.tone-light{background:rgba(255,255,255,.86);color:#111}
+  aside#sidebar{
+    background:rgba(20,20,20,.85); /* tools background 85% opaque */
+    backdrop-filter:saturate(1.1) blur(8px);
+    padding:var(--pad);display:flex;flex-direction:column;gap:var(--gap);overflow:auto;
+    transition:background .25s,color .25s, transform .25s ease-out;
+  }
+  /* adaptive tone */
+  aside#sidebar.tone-light{background:rgba(255,255,255,.85); color:#111}
   aside#sidebar.tone-light .label{color:#333}
   aside#sidebar.tone-light .ctrl, aside#sidebar.tone-light .range-wrap, aside#sidebar.tone-light .toggle-wrap{background:rgba(0,0,0,.08);color:#111}
-  aside#sidebar.tone-light .btn-save{color:#121212}
+  aside#sidebar.tone-light .eyebrow{background:rgba(0,0,0,.25)}
 
-  .title{font-weight:800;letter-spacing:.2px}
-  .caption{color:var(--muted);font-size:.9rem;margin-top:4px}
-  .fields{display:flex;flex-direction:column;gap:var(--gap)}
+  .title{font-weight:800;letter-spacing:.2px;margin:0}
+  .caption{color:var(--muted);font-size:.9rem;margin:0}
+  .fields{display:flex;flex-direction:column;gap:16px}
   .field{display:flex;flex-direction:column;gap:8px}
   .field .label{font-size:.9rem;color:var(--muted)}
 
-  /* Controls */
   input,button{font:inherit;color:inherit;border:none;border-radius:var(--r);outline:none}
-  input[type="file"]{background:var(--control);color:inherit;padding:.5rem;border-radius:var(--r);height:var(--h);display:flex;align-items:center}
+  input[type="file"]{background:var(--control);padding:.5rem;border-radius:var(--r);height:var(--h);display:flex;align-items:center}
   .ctrl{background:var(--control);height:var(--h);padding:0 12px;display:flex;align-items:center}
   input[type="number"].ctrl{width:100%;justify-content:center}
   input[type="color"].ctrl{width:100%;padding:0}
   button.ctrl{padding:0 18px;cursor:pointer}
   .btn-save{background:var(--orange);color:#121212;font-weight:700}
 
-  /* Sliders */
   .range-wrap{height:var(--h);display:flex;align-items:center;background:var(--control);border-radius:var(--r);padding:0 12px}
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:rgba(255,255,255,.28);border-radius:999px}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;margin-top:-6px;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
   input[type=range]::-moz-range-track{height:6px;background:rgba(255,255,255,.28);border-radius:999px}
   input[type=range]::-moz-range-thumb{width:18px;height:18px;border:none;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
 
-  /* Fit toggle */
   .toggle-wrap{height:var(--h);display:flex;align-items:center;background:var(--control);border-radius:var(--r);padding:0 12px}
   .toggle{position:relative;width:56px;height:28px}
   .toggle input{position:absolute;inset:0;opacity:0}
@@ -56,10 +58,8 @@
   .toggle input:checked + .track{background:#34c759}
   .toggle input:checked + .track .knob{transform:translateX(28px)}
 
-  /* Actions group */
   .actions{display:flex;gap:1rem}
 
-  /* Canvas area */
   main{padding:var(--pad);display:grid;place-items:center;overflow:auto}
   .surface{width:100%;max-width:1600px;background:var(--panel);border-radius:var(--r);padding:16px;height:calc(100vh - (var(--pad)*2));display:grid;place-items:center;position:relative}
   canvas{display:none}
@@ -69,107 +69,153 @@
   #placeholder.hidden{display:none !important}
   #err{color:#ffb6b6}
 
-  /* Preset buttons */
   .presets{display:flex;flex-wrap:wrap;gap:8px}
   .preset-btn{height:36px;padding:0 12px;border-radius:10px;background:var(--control);cursor:pointer}
   .preset-btn:active{transform:translateY(1px)}
 
-  /* Mobile: dock bottom, 95% width centered, fixed; wrap fields; show mobile bar only */
   .mobile-bar{display:none}
+  .eyebrow{width:64px;height:6px;border-radius:999px;background:rgba(255,255,255,.35);margin:0 auto}
+  .row{display:flex;align-items:center;gap:1rem; margin-top:1rem}
+  .row.stack{flex-direction:column;align-items:stretch}
+
   @media (max-width: 860px){
     .app{display:flex;flex-direction:column}
     main{order:1}
-    aside#sidebar{order:2;position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);width:95%;margin:0 auto;border-radius:var(--r);padding:12px;gap:12px;max-height:70vh;overflow:auto;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,.4);padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px))}
-    .mobile-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;order:-1}
+    aside#sidebar{
+      order:2;position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);
+      width:95%;margin:0 auto;border-radius:var(--r);padding:12px;gap:16px; /* 1rem vertical rhythm */
+      max-height:70vh;overflow:auto;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,.4);
+      padding-bottom:calc(12px + env(safe-area-inset-bottom, 0px))
+    }
+    .mobile-bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .mobile-toggle{background:var(--control);height:40px;padding:0 14px;border-radius:var(--r);cursor:pointer}
-    .fields{flex-direction:row;flex-wrap:wrap;gap:12px}
+    .fields{flex-direction:column;gap:16px}
+    .grid-2{display:flex;flex-wrap:wrap;gap:1rem}
+    .grid-2 > .field{width:48%}
     .field.fileUpload{width:100%}
-    .field.toolbarController{width:48%}
     .field.toolbarActions{display:none !important}
     .actions{gap:12px}
     .btn-save{flex:1;width:100%}
-    /* collapsed state */
     aside#sidebar.collapsed .fields{display:none}
     aside#sidebar.collapsed{max-height:var(--toolbar-collapsed);overflow:hidden}
   }
+
+  @media (min-width: 861px) and (max-height: 1080px){
+    .field.toolbarActions{
+      position: fixed; right: 20px; bottom: 20px; width: auto; max-width: 60vw;
+      background: rgba(20,20,20,.85); border-radius: var(--r); padding: 8px 10px;
+      z-index: 10000; box-shadow:0 10px 30px rgba(0,0,0,.45); backdrop-filter: saturate(1.1) blur(8px);
+    }
+    .field.toolbarActions .label{ display:none; }
+    .field.toolbarActions .actions{ gap:.5rem; }
+    .field.toolbarActions .btn-save{ min-width: 120px; }
+  }
+
+  /* haptic-like bounce */
+  @keyframes bouncePop{ 0%{transform:translateY(18px) scale(.99)} 60%{transform:translateY(-4px) scale(1.01)} 100%{transform:translateY(0) scale(1)} }
+  .bounce{ animation: bouncePop .35s cubic-bezier(.22,.61,.36,1) }
 </style>
 </head>
 <body>
 <div class="app">
   <aside id="sidebar" class="collapsed">
-    <!-- Mobile header bar: visible only on mobile, placed at top of sidebar DOM -->
-    <div class="mobile-bar">
-      <button id="toggleTools" class="mobile-toggle" type="button">Tools ▵</button>
-      <div class="actions">
-        <button id="saveBtn" class="ctrl btn-save" type="button">Save</button>
-        <button id="resetBtn" class="ctrl" type="button">Reset</button>
+    <!-- Row 1: Tools + Save + Reset (mobile bar) -->
+    <div class="row" id="row-tools">
+      <div class="mobile-bar">
+        <button id="toggleTools" class="mobile-toggle" type="button">Tools ▵</button>
+        <div class="actions">
+          <button id="saveBtn" class="ctrl btn-save" type="button">Save</button>
+          <button id="resetBtn" class="ctrl" type="button">Reset</button>
+        </div>
       </div>
     </div>
 
-    <div class="title">Reticulator by Enclave Studio</div>
-    <div class="caption">Click "Save" when done. If you can’t see your file, enable pop-ups. If you're on mobile, scroll down for preview.</div>
+    <!-- Row 2: Title + Hint -->
+    <div class="row stack" id="row-title">
+      <h1 class="title">Reticulator by Enclave Studio</h1>
+      <p class="caption">Click "Save" when done. If you can’t see your file, enable pop-ups. If you're on mobile, scroll down for preview.</p>
+    </div>
 
     <div class="fields">
+      <!-- (Keep upload near the top for usability) -->
       <div class="field fileUpload">
         <div class="label">File</div>
         <input id="fileInput" class="ctrl" type="file" accept="image/*" />
       </div>
 
-      <!-- Presets -->
+      <!-- Row 3: Presets -->
       <div class="field toolbarController">
-        <div class="label">Presets</div>
+        <div class="label">Presets (V&H × Diagonals)</div>
         <div class="presets">
-          <button class="preset-btn" data-v="2" data-h="4">2×4</button>
-          <button class="preset-btn" data-v="4" data-h="4">4×4</button>
-          <button class="preset-btn" data-v="4" data-h="6">4×6</button>
-          <button class="preset-btn" data-v="6" data-h="6">6×6</button>
-          <button class="preset-btn" data-v="6" data-h="8">6×8</button>
-          <button class="preset-btn" data-v="8" data-h="8">8×8</button>
-          <button id="presetRandom" class="preset-btn">Randomize</button>
+          <button class="preset-btn" data-g="2" data-d="4">2×4</button>
+          <button class="preset-btn" data-g="4" data-d="4">4×4</button>
+          <button class="preset-btn" data-g="4" data-d="6">4×6</button>
+          <button class="preset-btn" data-g="6" data-d="6">6×6</button>
+          <button class="preset-btn" data-g="6" data-d="8">6×8</button>
+          <button class="preset-btn" data-g="8" data-d="8">8×8</button>
+          <button class="preset-btn" data-g="10" data-d="10">10×10</button>
+          <button class="preset-btn" data-g="12" data-d="2">12×2</button>
         </div>
       </div>
 
-      <div class="field toolbarController">
-        <div class="label">Vertical</div>
-        <input id="vDiv" class="ctrl" type="number" value="4" min="1" max="200" />
-      </div>
-      <div class="field toolbarController">
-        <div class="label">Horizontal</div>
-        <input id="hDiv" class="ctrl" type="number" value="4" min="1" max="200" />
-      </div>
-      <div class="field toolbarController">
-        <div class="label">Diagonal /</div>
-        <input id="dFDiv" class="ctrl" type="number" value="2" min="1" max="200" title="/ (bottom-left → top-right)" />
-      </div>
-      <div class="field toolbarController">
-        <div class="label">Diagonal \\</div>
-        <input id="dBDiv" class="ctrl" type="number" value="2" min="1" max="200" title="\\ (top-left → bottom-right)" />
-      </div>
-      <div class="field toolbarController">
-        <div class="label">Weight</div>
-        <div class="range-wrap">
-          <input id="lineWidth" type="range" min="0.5" max="10" step="0.5" value="1.5" />
+      <!-- Row 4: Vertical | Horizontal -->
+      <div class="grid-2">
+        <div class="field toolbarController">
+          <div class="label">Vertical</div>
+          <input id="vDiv" class="ctrl" type="number" value="4" min="1" max="200" />
+        </div>
+        <div class="field toolbarController">
+          <div class="label">Horizontal</div>
+          <input id="hDiv" class="ctrl" type="number" value="4" min="1" max="200" />
         </div>
       </div>
-      <div class="field toolbarController">
-        <div class="label">Color</div>
-        <input id="lineColor" class="ctrl" type="color" value="#67d2ff" />
-      </div>
-      <div class="field toolbarController">
-        <div class="label">Opacity</div>
-        <div class="range-wrap">
-          <input id="opacity" type="range" min="0.05" max="1" step="0.05" value="0.9" />
+
+      <!-- Row 5: Diagonal / | Diagonal \ -->
+      <div class="grid-2">
+        <div class="field toolbarController">
+          <div class="label">Diagonal /</div>
+          <input id="dFDiv" class="ctrl" type="number" value="2" min="1" max="200" title="/ (bottom-left → top-right)" />
+        </div>
+        <div class="field toolbarController">
+          <div class="label">Diagonal \\</div>
+          <input id="dBDiv" class="ctrl" type="number" value="2" min="1" max="200" title="\\ (top-left → bottom-right)" />
         </div>
       </div>
-      <div class="field toolbarController">
-        <div class="label">Fit</div>
-        <div class="toggle-wrap">
-          <label class="toggle">
-            <input id="fit" type="checkbox" checked />
-            <span class="track"><span class="knob"></span></span>
-          </label>
+
+      <!-- Row 6: Weight | Opacity -->
+      <div class="grid-2">
+        <div class="field toolbarController">
+          <div class="label">Weight</div>
+          <div class="range-wrap">
+            <input id="lineWidth" type="range" min="0.5" max="10" step="0.5" value="1.5" />
+          </div>
+        </div>
+        <div class="field toolbarController">
+          <div class="label">Opacity</div>
+          <div class="range-wrap">
+            <input id="opacity" type="range" min="0.05" max="1" step="0.05" value="0.9" />
+          </div>
         </div>
       </div>
+
+      <!-- Row 7: Color | Fit -->
+      <div class="grid-2">
+        <div class="field toolbarController">
+          <div class="label">Color</div>
+          <input id="lineColor" class="ctrl" type="color" value="#67d2ff" />
+        </div>
+        <div class="field toolbarController">
+          <div class="label">Fit</div>
+          <div class="toggle-wrap">
+            <label class="toggle">
+              <input id="fit" type="checkbox" checked />
+              <span class="track"><span class="knob"></span></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop actions (also floats when height <=1080px) -->
       <div class="field toolbarActions">
         <div class="label">Actions</div>
         <div class="actions">
@@ -191,17 +237,15 @@
 </div>
 
 <script>
-(()=>{
-  'use strict';
+(()=>{'use strict';
   const $ = id => document.getElementById(id);
   const fileInput=$('fileInput'), vDivEl=$('vDiv'), hDivEl=$('hDiv'), dFDivEl=$('dFDiv'), dBDivEl=$('dBDiv');
   const lineWidthEl=$('lineWidth'), lineColorEl=$('lineColor'), opacityEl=$('opacity'), fitEl=$('fit');
   const resetBtnTop=$('resetBtn'), saveBtnTop=$('saveBtn');
   const resetBtn2=$('resetBtn2'), saveBtn2=$('saveBtn2');
-  const err=$('err');
-  const preview=$('preview');
-  const placeholder=$('placeholder');
+  const err=$('err'), preview=$('preview'), placeholder=$('placeholder');
   const canvas=$('canvas'), ctx=canvas.getContext('2d');
+  const sidebar=document.getElementById('sidebar');
   let img=new Image(), imgLoaded=false, displayW=800, displayH=600;
 
   const clamp=(n,min,max)=>Math.max(min,Math.min(max,isNaN(n)?min:n));
@@ -223,10 +267,7 @@
   function computeSlashSegment(c,W,H){ const pts=[]; let x,y; y=c*H; if(y>=0&&y<=H) pts.push([0,y]); y=H*(c-1); if(y>=0&&y<=H) pts.push([W,y]); x=c*W; if(x>=0&&x<=W) pts.push([x,0]); x=W*(c-1); if(x>=0&&x<=W) pts.push([x,H]); if(pts.length<2) return null; return pickTwoExtreme(pts); }
   function computeBackslashSegment(c,W,H){ const pts=[]; let x,y; y=-c*H; if(y>=0&&y<=H) pts.push([0,y]); y=(1-c)*H; if(y>=0&&y<=H) pts.push([W,y]); x=c*W; if(x>=0&&x<=W) pts.push([x,0]); x=(1+c)*W; if(x>=0&&x<=W) pts.push([x,H]); if(pts.length<2) return null; return pickTwoExtreme(pts); }
 
-  function updatePreviewVisibility(){
-    if(imgLoaded){ preview.classList.add('is-ready'); }
-    else { preview.classList.remove('is-ready'); }
-  }
+  function updatePreviewVisibility(){ if(imgLoaded){ preview.classList.add('is-ready'); } else { preview.classList.remove('is-ready'); } }
 
   function draw(){
     setCanvasSizeToFit();
@@ -274,25 +315,13 @@
 
   function dataURLToBlob(dataUrl){ const arr=dataUrl.split(','), mime=arr[0].match(/:(.*?);/)[1]; const bstr=atob(arr[1]); let n=bstr.length; const u8=new Uint8Array(n); while(n--) u8[n]=bstr.charCodeAt(n); return new Blob([u8],{type:mime}); }
 
-  // ===== Presets & Randomize =====
-  function applyPreset(v,h){ vDivEl.value=v; hDivEl.value=h; draw(); }
-  function randomize(){
-    const choices=[[2,4],[4,4],[4,6],[6,6],[6,8],[8,8]];
-    const pick=choices[Math.floor(Math.random()*choices.length)];
-    vDivEl.value=pick[0]; hDivEl.value=pick[1];
-    dFDivEl.value = Math.max(1, Math.round(Math.random()*8));
-    dBDivEl.value = Math.max(1, Math.round(Math.random()*8));
-    lineWidthEl.value = (Math.random()*9.5 + 0.5).toFixed(1);
-    opacityEl.value = (Math.random()*0.9 + 0.1).toFixed(2);
-    draw();
-  }
-  document.querySelectorAll('.preset-btn[data-v]').forEach(btn=>{
-    btn.addEventListener('click',()=>applyPreset(parseInt(btn.dataset.v,10),parseInt(btn.dataset.h,10)));
+  // Presets (first number = V & H, second = diagonals both directions)
+  function applyPreset(grid,diags){ vDivEl.value=grid; hDivEl.value=grid; dFDivEl.value=diags; dBDivEl.value=diags; draw(); }
+  document.querySelectorAll('.preset-btn[data-g]').forEach(btn=>{
+    btn.addEventListener('click',()=>applyPreset(parseInt(btn.dataset.g,10),parseInt(btn.dataset.d,10)));
   });
-  const presetRandom=document.getElementById('presetRandom');
-  if(presetRandom) presetRandom.addEventListener('click', randomize);
 
-  // ===== Auto tone toolbar (mobile) based on image luminance =====
+  // Auto tone toolbar (mobile) based on average luminance
   function computeAverageLuma(){
     try{
       const off=document.createElement('canvas'); const sz=32; off.width=sz; off.height=sz; const ox=off.getContext('2d',{willReadFrequently:true});
@@ -302,15 +331,36 @@
     }catch(e){ return 180; }
   }
   function autoToneToolbar(){
-    const sidebar=document.getElementById('sidebar');
     const isMobile=window.matchMedia('(max-width: 860px)').matches;
     if(!isMobile || !imgLoaded){ sidebar.classList.remove('tone-light'); return; }
     const luma=computeAverageLuma();
-    // If image is dark (average luma low), make toolbar light for contrast
     if(luma < 110) sidebar.classList.add('tone-light'); else sidebar.classList.remove('tone-light');
   }
 
-  // ===== Events =====
+  // Mobile gestures + haptic-like bounce
+  let touchStartY=null, touchStartX=null; const TOP_GRAB_ZONE=84; // expand grab area (eyebrow zone)
+  function addBounce(){ sidebar.classList.remove('bounce'); void sidebar.offsetWidth; sidebar.classList.add('bounce'); }
+  function setCollapsed(c){
+    if(c){ sidebar.classList.add('collapsed'); sidebar.classList.remove('bounce'); }
+    else { sidebar.classList.remove('collapsed'); addBounce(); }
+  }
+  sidebar.addEventListener('touchstart', (e)=>{
+    if(!window.matchMedia('(max-width: 860px)').matches) return;
+    const t=e.touches[0];
+    const rect=sidebar.getBoundingClientRect();
+    const y=t.clientY - rect.top;
+    if(y<=TOP_GRAB_ZONE){ touchStartY=t.clientY; touchStartX=t.clientX; }
+  }, {passive:true});
+  sidebar.addEventListener('touchend', (e)=>{
+    if(touchStartY===null) return;
+    const t=e.changedTouches[0];
+    const dy=t.clientY - touchStartY; const dx=Math.abs(t.clientX - touchStartX);
+    const isVerticalSwipe = Math.abs(dy) > 40 && dx < 60;
+    if(isVerticalSwipe){ if(dy>0){ setCollapsed(true); } else { setCollapsed(false); } }
+    touchStartY=null; touchStartX=null;
+  }, {passive:true});
+
+  // File upload, control bindings
   fileInput.addEventListener('change', e=>{
     const f=e.target.files && e.target.files[0];
     if(!f) return;
@@ -320,37 +370,28 @@
     im.onerror=()=>{ err.textContent='Could not load that image.' };
     im.src=url;
   });
-
   [vDivEl,hDivEl,dFDivEl,dBDivEl,lineWidthEl,lineColorEl,opacityEl,fitEl].forEach(el=>{
     const h=()=>{ draw(); };
     el.addEventListener('input', h);
     el.addEventListener('change', h);
   });
 
-  function doReset(){
-    vDivEl.value=4; hDivEl.value=4; dFDivEl.value=2; dBDivEl.value=2; lineWidthEl.value=1.5; lineColorEl.value='#67d2ff'; opacityEl.value=0.9; fitEl.checked=true; draw();
-  }
-  [$('resetBtn'), $('resetBtn2')].forEach(b=> b&&b.addEventListener('click', doReset));
+  function doReset(){ vDivEl.value=4; hDivEl.value=4; dFDivEl.value=2; dBDivEl.value=2; lineWidthEl.value=1.5; lineColorEl.value='#67d2ff'; opacityEl.value=0.9; fitEl.checked=true; draw(); }
+  [resetBtnTop, resetBtn2].forEach(b=> b&&b.addEventListener('click', doReset));
 
   function doSave(){
     if(!imgLoaded){ err.textContent='Upload an image first.'; return; }
-    const win = window.open('', '_blank'); // popup-safe open
+    const win = window.open('', '_blank');
     exportBlob((blob)=>{
       const url = URL.createObjectURL(blob);
       if (win) { win.location.href = url; }
       else { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.click(); }
-      setTimeout(()=>URL.revokeObjectURL(url), 30_000);
+      setTimeout(()=>URL.revokeObjectURL(url), 30000);
     });
   }
-  [$('saveBtn'), $('saveBtn2')].forEach(b=> b&&b.addEventListener('click', doSave));
+  [saveBtnTop, saveBtn2].forEach(b=> b&&b.addEventListener('click', doSave));
 
-  // Mobile: collapse/expand toolbar — mobile bar stays visible
   const toggleBtn = $('toggleTools');
-  const sidebar = document.getElementById('sidebar');
-  const setCollapsed = (c)=>{
-    if(c){ sidebar.classList.add('collapsed'); if(toggleBtn) toggleBtn.textContent='Tools ▵'; }
-    else { sidebar.classList.remove('collapsed'); if(toggleBtn) toggleBtn.textContent='Tools ▾'; }
-  };
   const mql = window.matchMedia('(max-width: 860px)');
   function applyResponsiveState(){ setCollapsed(mql.matches); autoToneToolbar(); }
   toggleBtn && toggleBtn.addEventListener('click', ()=>{ const c=sidebar.classList.contains('collapsed'); setCollapsed(!c); });
